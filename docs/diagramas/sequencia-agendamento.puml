@@ -1,0 +1,75 @@
+@startuml Sequencia_AgendarConsulta
+!theme plain
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #0f6b4f
+    LifeLineBorderColor #0f6b4f
+    ParticipantBorderColor #0f6b4f
+    ParticipantBackgroundColor #eefaf4
+    ActorBorderColor #0f6b4f
+}
+title Diagrama de Sequência — Agendar Consulta (UC05)
+
+actor "Utente" as utente
+participant "Browser\n(Blade + JS)" as browser
+participant "PatientAppointment\nController" as controller
+participant "StoreAppointment\nRequest" as request
+participant "AppointmentService" as service
+participant "Availability\n(Eloquent)" as availabilityModel
+participant "Appointment\n(Eloquent)" as appointmentModel
+database "MySQL" as db
+
+utente -> browser : Escolhe serviço, profissional e data
+browser -> controller : GET /utente/agendamentos/horarios\n(AJAX: service_id, professional_profile_id, date)
+activate controller
+controller -> service : availableSlots(service, profissional, data)
+activate service
+service -> availabilityModel : where(profissional, serviço, dia_semana)
+availabilityModel -> db : SELECT * FROM availabilities ...
+db --> availabilityModel : janelas de disponibilidade
+service -> appointmentModel : where(profissional, data, status != cancelado)
+appointmentModel -> db : SELECT scheduled_at FROM appointments ...
+db --> appointmentModel : horários já ocupados
+service -> service : gera slots (janela ÷ duração)\nremove ocupados e passados
+service --> controller : array de horários livres
+deactivate service
+controller --> browser : 200 JSON { slots: [...] }
+deactivate controller
+browser -> utente : Mostra botões de horário disponível
+
+utente -> browser : Selecciona horário e confirma
+browser -> controller : POST /utente/agendamentos\n(service_id, professional_profile_id, date, time)
+activate controller
+controller -> request : validate()
+activate request
+request -> request : regras (serviço activo,\nprofissional presta o serviço)
+alt dados inválidos
+    request --> controller : ValidationException
+    controller --> browser : 422 + erros
+else dados válidos
+    request --> controller : dados validados
+    deactivate request
+
+    controller -> service : book(utente, serviço, profissional, data, hora)
+    activate service
+    service -> db : BEGIN TRANSACTION
+    service -> appointmentModel : lockForUpdate()\nverifica conflito de horário
+    appointmentModel -> db : SELECT ... FOR UPDATE
+    db --> appointmentModel : existe/não existe conflito
+
+    alt horário já ocupado
+        service --> controller : ValidationException("horário indisponível")
+        controller --> browser : 422 + mensagem
+    else horário livre
+        service -> appointmentModel : create(status = Agendado)
+        appointmentModel -> db : INSERT INTO appointments ...
+        service -> db : COMMIT
+        service --> controller : Appointment criado
+        deactivate service
+        controller --> browser : 302 redirect (status=agendamento-criado)
+        browser -> utente : "Consulta agendada com sucesso"
+    end
+end
+deactivate controller
+
+@enduml

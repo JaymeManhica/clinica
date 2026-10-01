@@ -20,5 +20,10 @@
             <h2 class="font-semibold text-gray-800">Filas em Tempo Real</h2>
             <p class="text-sm text-gray-500 mt-1">Acompanhar o estado das filas de todos os serviços.</p>
         </a>
+
+        <a href="{{ route('admin.indicadores.index') }}" class="block bg-white shadow rounded-lg p-5 hover:shadow-md transition">
+            <h2 class="font-semibold text-gray-800">Indicadores (Teoria das Filas)</h2>
+            <p class="text-sm text-gray-500 mt-1">Calcular λ, μ, ρ, L, Lq, W e Wq — modelo M/M/1, observado vs calculado.</p>
+        </a>
     </div>
 </x-layouts.app>

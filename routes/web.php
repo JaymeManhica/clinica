@@ -4,6 +4,7 @@ use App\Enums\UserRole;
 use App\Http\Controllers\Admin\AppointmentController as AdminAppointmentController;
 use App\Http\Controllers\Admin\AvailabilityController;
 use App\Http\Controllers\Admin\QueueController as AdminQueueController;
+use App\Http\Controllers\Admin\QueueTheoryController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -86,5 +87,8 @@ Route::middleware(['auth', 'account.active'])->group(function () {
         Route::get('agendamentos', [AdminAppointmentController::class, 'index'])->name('agendamentos.index');
 
         Route::get('filas', [AdminQueueController::class, 'index'])->name('filas.index');
+
+        Route::get('indicadores', [QueueTheoryController::class, 'index'])->name('indicadores.index');
+        Route::post('indicadores', [QueueTheoryController::class, 'store'])->name('indicadores.store');
     });
 });

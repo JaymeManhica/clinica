@@ -1,0 +1,182 @@
+@startuml DER_MinhaSaudeEI
+!theme plain
+skinparam linetype ortho
+skinparam roundcorner 6
+skinparam shadowing false
+skinparam class {
+    BackgroundColor White
+    BorderColor #0f6b4f
+    ArrowColor #0f6b4f
+}
+title Modelo Entidade-Relacionamento — Minha Saúde EI
+
+entity "users" as users {
+  * id : BIGINT <<PK>>
+  --
+  name : VARCHAR
+  email : VARCHAR <<unique>>
+  phone : VARCHAR <<unique>>
+  role : VARCHAR
+  password : VARCHAR
+  active : BOOLEAN
+  email_verified_at : TIMESTAMP
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "professional_profiles" as professional_profiles {
+  * id : BIGINT <<PK>>
+  --
+  # user_id : BIGINT <<FK>> <<unique>>
+  title : VARCHAR
+  registration_number : VARCHAR <<unique>>
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "services" as services {
+  * id : BIGINT <<PK>>
+  --
+  name : VARCHAR <<unique>>
+  description : TEXT
+  average_duration_minutes : SMALLINT
+  active : BOOLEAN
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "professional_service" as professional_service {
+  * id : BIGINT <<PK>>
+  --
+  # professional_profile_id : BIGINT <<FK>>
+  # service_id : BIGINT <<FK>>
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "availabilities" as availabilities {
+  * id : BIGINT <<PK>>
+  --
+  # professional_profile_id : BIGINT <<FK>>
+  # service_id : BIGINT <<FK>>
+  day_of_week : TINYINT
+  start_time : TIME
+  end_time : TIME
+  active : BOOLEAN
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "appointments" as appointments {
+  * id : BIGINT <<PK>>
+  --
+  # user_id : BIGINT <<FK>>
+  # professional_profile_id : BIGINT <<FK>>
+  # service_id : BIGINT <<FK>>
+  scheduled_at : DATETIME
+  status : VARCHAR
+  cancellation_reason : TEXT
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "queue_tickets" as queue_tickets {
+  * id : BIGINT <<PK>>
+  --
+  ticket_number : VARCHAR
+  # service_id : BIGINT <<FK>>
+  # professional_profile_id : BIGINT <<FK, nullable>>
+  # user_id : BIGINT <<FK>>
+  # appointment_id : BIGINT <<FK, nullable, unique>>
+  origin : VARCHAR
+  status : VARCHAR
+  priority_level : VARCHAR
+  issued_at : DATETIME
+  called_at : DATETIME
+  started_at : DATETIME
+  finished_at : DATETIME
+  canceled_at : DATETIME
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "priority_records" as priority_records {
+  * id : BIGINT <<PK>>
+  --
+  # queue_ticket_id : BIGINT <<FK>> <<unique>>
+  requested_level : VARCHAR
+  confirmed_level : VARCHAR
+  reason : TEXT
+  status : VARCHAR
+  # confirmed_by : BIGINT <<FK, nullable>>
+  confirmed_at : DATETIME
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "queue_metric_snapshots" as queue_metric_snapshots {
+  * id : BIGINT <<PK>>
+  --
+  # service_id : BIGINT <<FK>>
+  period_start : DATETIME
+  period_end : DATETIME
+  lambda : DECIMAL
+  mu : DECIMAL
+  rho : DECIMAL
+  l : DECIMAL
+  lq : DECIMAL
+  w : DECIMAL
+  wq : DECIMAL
+  type : VARCHAR
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+entity "audit_logs" as audit_logs {
+  * id : BIGINT <<PK>>
+  --
+  # user_id : BIGINT <<FK, nullable>>
+  action : VARCHAR
+  auditable_type : VARCHAR
+  auditable_id : BIGINT
+  old_values : JSON
+  new_values : JSON
+  created_at : TIMESTAMP
+}
+
+entity "settings" as settings {
+  * id : BIGINT <<PK>>
+  --
+  key : VARCHAR <<unique>>
+  value : VARCHAR
+  created_at : TIMESTAMP
+  updated_at : TIMESTAMP
+}
+
+' ---------- Relacionamentos ----------
+
+users              ||--o| professional_profiles : "1 utilizador tem\n0..1 perfil profissional"
+professional_profiles }o--o{ services            : "N profissionais atendem\nN serviços (via professional_service)"
+professional_profiles ||--o{ professional_service
+services              ||--o{ professional_service
+
+professional_profiles ||--o{ availabilities : "define"
+services               ||--o{ availabilities : "possui"
+
+users                  ||--o{ appointments : "solicita"
+professional_profiles  ||--o{ appointments : "atende"
+services               ||--o{ appointments : "refere-se a"
+
+appointments           |o--o| queue_tickets : "gera (0..1)"
+services               ||--o{ queue_tickets : "organiza fila de"
+professional_profiles  |o--o{ queue_tickets : "chama (0..1)"
+users                  ||--o{ queue_tickets : "possui"
+
+queue_tickets          ||--o| priority_records : "tem pedido de\nprioridade (0..1)"
+users                  |o--o{ priority_records : "confirma (0..1)"
+
+services               ||--o{ queue_metric_snapshots : "acumula indicadores de"
+
+users                  |o--o{ audit_logs : "executa (0..1)"
+
+@enduml

@@ -1,0 +1,75 @@
+@startuml Sequencia_ChamarProximo
+!theme plain
+skinparam shadowing false
+skinparam sequence {
+    ArrowColor #0f6b4f
+    LifeLineBorderColor #0f6b4f
+    ParticipantBorderColor #0f6b4f
+    ParticipantBackgroundColor #eefaf4
+    ActorBorderColor #0f6b4f
+}
+title Diagrama de Sequência — Chamar Próximo da Fila (UC14)
+
+actor "Profissional de Saúde" as profissional
+participant "Browser\n(Blade)" as browser
+participant "ProfessionalQueue\nController" as controller
+participant "CallNextRequest" as request
+participant "QueueService" as service
+participant "QueueTicket\n(Eloquent)" as ticketModel
+participant "AuditService" as audit
+database "MySQL" as db
+
+profissional -> browser : Abre "Fila de Atendimento"\ne clica em "Chamar Próximo"
+browser -> controller : POST /profissional/fila/chamar\n(service_id)
+activate controller
+
+controller -> request : validate()
+activate request
+request -> request : profissional presta\nesse serviço? (professional_service)
+alt não presta o serviço
+    request --> controller : ValidationException
+    controller --> browser : 422 + erro
+else presta o serviço
+    request --> controller : dados validados
+    deactivate request
+
+    controller -> service : callNext(profissionalUser, perfil, serviço)
+    activate service
+    service -> db : BEGIN TRANSACTION
+    service -> ticketModel : SELECT próxima senha\nWHERE status = 'emitida'\nAND (profissional_id = perfil OR NULL)\nORDER BY prioridade, issued_at\nFOR UPDATE
+    ticketModel -> db : SELECT ... FOR UPDATE
+    db --> ticketModel : próxima senha (ou nenhuma)
+
+    alt fila vazia
+        service --> controller : null
+        service -> db : COMMIT
+        controller --> browser : redirect (status=fila-vazia)
+        browser -> profissional : "Não há senhas à espera"
+    else existe senha à espera
+        service -> ticketModel : update(status=Chamada,\nprofissional_id, called_at=now())
+        ticketModel -> db : UPDATE queue_tickets ...
+        service -> audit : log(profissional, "queue_ticket.called", senha)
+        audit -> db : INSERT INTO audit_logs ...
+        service -> db : COMMIT
+        service --> controller : QueueTicket chamado
+        deactivate service
+        controller --> browser : redirect (status=senha-chamada)
+        browser -> profissional : Mostra senha chamada\n(número, utente, serviço)
+    end
+end
+deactivate controller
+
+profissional -> browser : Clica "Iniciar Atendimento"
+browser -> controller : PATCH /profissional/senhas/{ticket}/iniciar
+controller -> service : startAttendance(actor, senha)
+service -> ticketModel : update(status=EmAtendimento, started_at=now())
+ticketModel -> db : UPDATE queue_tickets ...
+
+profissional -> browser : Clica "Concluir Atendimento"
+browser -> controller : PATCH /profissional/senhas/{ticket}/concluir
+controller -> service : finishAttendance(actor, senha)
+service -> ticketModel : update(status=Concluida, finished_at=now())
+ticketModel -> db : UPDATE queue_tickets ...
+service -> db : (se ligado a agendamento)\nUPDATE appointments SET status=Concluido
+
+@enduml

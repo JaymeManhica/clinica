@@ -3,6 +3,7 @@
 use App\Enums\UserRole;
 use App\Http\Controllers\Admin\AppointmentController as AdminAppointmentController;
 use App\Http\Controllers\Admin\AvailabilityController;
+use App\Http\Controllers\Admin\ProfessionalController;
 use App\Http\Controllers\Admin\QueueController as AdminQueueController;
 use App\Http\Controllers\Admin\QueueTheoryController;
 use App\Http\Controllers\Admin\ServiceController;
@@ -83,6 +84,13 @@ Route::middleware(['auth', 'account.active'])->group(function () {
         Route::get('servicos/{service}/horarios/{availability}/editar', [AvailabilityController::class, 'edit'])->name('servicos.horarios.edit');
         Route::put('servicos/{service}/horarios/{availability}', [AvailabilityController::class, 'update'])->name('servicos.horarios.update');
         Route::delete('servicos/{service}/horarios/{availability}', [AvailabilityController::class, 'destroy'])->name('servicos.horarios.destroy');
+
+        Route::get('profissionais', [ProfessionalController::class, 'index'])->name('profissionais.index');
+        Route::get('profissionais/criar', [ProfessionalController::class, 'create'])->name('profissionais.create');
+        Route::post('profissionais', [ProfessionalController::class, 'store'])->name('profissionais.store');
+        Route::get('profissionais/{professional}/editar', [ProfessionalController::class, 'edit'])->name('profissionais.edit');
+        Route::put('profissionais/{professional}', [ProfessionalController::class, 'update'])->name('profissionais.update');
+        Route::patch('profissionais/{professional}/estado', [ProfessionalController::class, 'toggleActive'])->name('profissionais.estado');
 
         Route::get('agendamentos', [AdminAppointmentController::class, 'index'])->name('agendamentos.index');
 
